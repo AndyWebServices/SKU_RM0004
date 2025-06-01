@@ -4,7 +4,27 @@ Demo for ssd1306 i2c driver for  Raspberry Pi
 #include <stdio.h>
 #include "st7735.h"
 #include <unistd.h>
+#include <time.h>
 
+bool is_within_5s_of_minute() {
+    time_t now;
+    struct tm *tm_info;
+
+    time(&now);
+    tm_info = localtime(&now);
+
+    return tm_info->tm_sec >= 55;
+}
+
+
+void wait_until_top_of_minute() {
+    time_t now;
+    time(&now);
+    struct tm *tm_info = localtime(&now);
+
+    int seconds_to_wait = 60 - tm_info->tm_sec;
+    sleep(seconds_to_wait);
+}
 
 int main(void) {
     uint8_t symbol = 0;
@@ -15,15 +35,30 @@ int main(void) {
     }
     sleep(1);
 
-    lcd_fill_screen(ST7735_BLACK);
-    lcd_fill_rectangle(0, 20, ST7735_WIDTH, 5, ST7735_BLUE);
-
     while (1) {
-        lcd_display(symbol);
-        sleep(2);
-        symbol++;
-        if (symbol == 4) {
-            symbol = 0;
+        wait_until_top_of_minute(); // synchronize to top of minute
+        bool first_pass = true;
+
+        while (1) {
+            if (is_within_5s_of_minute()) break;
+            lcd_display_ip(first_pass);
+            first_pass = false;
+
+            if (is_within_5s_of_minute()) break;
+            lcd_display_cpuLoad();
+            sleep(2);
+
+            if (is_within_5s_of_minute()) break;
+            lcd_display_ram();
+            sleep(2);
+
+            if (is_within_5s_of_minute()) break;
+            lcd_display_temp();
+            sleep(2);
+
+            if (is_within_5s_of_minute()) break;
+            lcd_display_disk();
+            sleep(2);
         }
     }
     return 0;
